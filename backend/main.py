@@ -1,19 +1,23 @@
 import os
 import shutil
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, File, Query, HTTPException
+import pymupdf
+from fastapi import FastAPI, UploadFile, File, Query, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from models import Fact, Reconciliation, IngestResponse
 from parser import PDFParser
 from extractor import FactExtractor
 from reconciler import Reconciler
 from store import StorageEngine
+from schema_engine import SchemaEngine
+from qa_engine import QAEngine
 
 app = FastAPI(
     title="Veritas Fact Knowledge Layer API",
-    description="Cross-Document Fact Ingestion, Layout Grounding, and Reconciliation Engine",
-    version="1.0.0"
+    description="Cross-Document Fact Ingestion, Layout Grounding, Dynamic Schema, and Reconciliation Engine",
+    version="1.1.0"
 )
 
 # Enable CORS for Next.js frontend
@@ -29,6 +33,9 @@ storage = StorageEngine("veritas.db")
 
 UPLOAD_DIR = "uploaded_docs"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+class QueryRequest(BaseModel):
+    query: str
 
 @app.get("/api/health")
 def health():
@@ -58,7 +65,6 @@ async def upload_document(file: UploadFile = File(...)):
 
 @app.post("/api/ingest-starter")
 def ingest_starter_datasets(dataset: str = Query("all", description="Options: 'delhivery', 'india-macroeconomy', or 'all'")):
-    # Look in local project directory first, fallback to D:\starter-datasets
     local_base = os.path.join(os.path.dirname(__file__), "..", "starter-datasets")
     fallback_base = r"D:\starter-datasets"
 
@@ -98,6 +104,81 @@ def ingest_starter_datasets(dataset: str = Query("all", description="Options: 'd
         "total_facts_stored": len(all_facts),
         "total_reconciliations": len(all_recs)
     }
+
+@app.get("/api/documents/{doc_id}/pages/{page_num}/preview")
+def render_page_preview(doc_id: str, page_num: int, bbox: Optional[str] = Query(None, description="x0,y0,x1,y1")):
+    """
+    Renders a high-resolution PNG image of the requested PDF page with the exact
+    bounding box highlighted with an illuminated bounding rectangle.
+    """
+    # Find document
+    file_path = _find_document_path(doc_id)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found.")
+
+    doc = pymupdf.open(file_path)
+    if not (1 <= page_num <= len(doc)):
+        doc.close()
+        raise HTTPException(status_code=400, detail=f"Page {page_num} out of bounds (1-{len(doc)}).")
+
+    page = doc[page_num - 1]
+
+    # Draw highlight if bbox provided
+    if bbox:
+        try:
+            coords = [float(c.strip()) for c in bbox.split(",")]
+            if len(coords) == 4:
+                rect = pymupdf.Rect(coords[0], coords[1], coords[2], coords[3])
+                # Draw illuminated highlight (orange border, translucent gold fill)
+                page.draw_rect(rect, color=(0.95, 0.55, 0.1), fill=(1.0, 0.9, 0.2), fill_opacity=0.45, width=2.5)
+        except Exception:
+            pass
+
+    pix = page.get_pixmap(dpi=120)
+    png_bytes = pix.tobytes("png")
+    doc.close()
+
+    return Response(content=png_bytes, media_type="image/png")
+
+@app.get("/api/schema")
+def get_schema():
+    """Returns the dynamically induced schema and canonical predicate taxonomy."""
+    all_facts = storage.get_all_facts()
+    return SchemaEngine.induce_schema(all_facts)
+
+@app.post("/api/schema/induce")
+def trigger_schema_induction():
+    """Runs a fresh dynamic schema induction pass over the current knowledge store."""
+    all_facts = storage.get_all_facts()
+    return SchemaEngine.induce_schema(all_facts)
+
+@app.post("/api/query")
+def answer_query(body: QueryRequest):
+    """Fact-Grounded Q&A over the structured knowledge layer with full citations."""
+    all_facts = storage.get_all_facts()
+    all_recs = storage.get_reconciliations()
+    return QAEngine.answer_query(body.query, all_facts, all_recs)
+
+def _find_document_path(doc_id: str) -> Optional[str]:
+    # Check upload dir
+    p = os.path.join(UPLOAD_DIR, doc_id)
+    if os.path.exists(p):
+        return p
+
+    # Check starter datasets
+    local_base = os.path.join(os.path.dirname(__file__), "..", "starter-datasets")
+    for sub in ["delhivery", "india-macroeconomy"]:
+        candidate = os.path.join(local_base, sub, doc_id)
+        if os.path.exists(candidate):
+            return candidate
+
+    fallback_base = r"D:\starter-datasets"
+    for sub in ["delhivery", "india-macroeconomy"]:
+        candidate = os.path.join(fallback_base, sub, doc_id)
+        if os.path.exists(candidate):
+            return candidate
+
+    return None
 
 def _process_pdf_file(file_path: str, filename: str) -> IngestResponse:
     parser = PDFParser(file_path)

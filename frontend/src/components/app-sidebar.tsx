@@ -1,6 +1,6 @@
 "use client"
 
-import { FileUp, ListTree, Repeat2 } from "lucide-react"
+import { FileUp, ListTree, Repeat2, Search, Network } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -31,6 +31,16 @@ const items = [
     title: "Reconciliations",
     url: "/reconciliations",
     icon: Repeat2,
+  },
+  {
+    title: "Fact Search & Q&A",
+    url: "/search",
+    icon: Search,
+  },
+  {
+    title: "Dynamic Schema",
+    url: "/schema",
+    icon: Network,
   },
 ]
 
