@@ -79,6 +79,12 @@ def update_api_key(body: SettingsUpdate):
 def health():
     return {"status": "healthy", "service": "veritas-engine"}
 
+@app.post("/api/reset")
+def reset_database():
+    """Wipes the database clean for a fresh zero-state demonstration."""
+    storage.clear_database()
+    return {"status": "success", "message": "Knowledge base reset. 0 facts and 0 reconciliations stored."}
+
 @app.get("/api/facts", response_model=List[Fact])
 def get_facts(doc_id: Optional[str] = None):
     all_facts = storage.get_all_facts()

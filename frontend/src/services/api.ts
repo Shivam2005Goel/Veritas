@@ -163,5 +163,11 @@ export const api = {
     })
     if (!res.ok) throw new Error("Failed to update API key")
     return await res.json()
+  },
+
+  resetKnowledgeBase: async () => {
+    const res = await fetch(`${API_BASE_URL}/reset`, { method: "POST" })
+    if (!res.ok) throw new Error("Failed to reset knowledge base")
+    return await res.json()
   }
 }

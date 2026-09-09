@@ -204,3 +204,12 @@ class StorageEngine:
             is_superseded=bool(row["is_superseded"]),
             superseded_by=row["superseded_by"]
         )
+
+    def clear_database(self):
+        """Clears all stored documents, facts, and reconciliations for a clean demo state."""
+        with self._get_conn() as conn:
+            conn.execute("DELETE FROM reconciliations")
+            conn.execute("DELETE FROM facts")
+            conn.execute("DELETE FROM documents")
+            conn.execute("DELETE FROM entities")
+            conn.commit()

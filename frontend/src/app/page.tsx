@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
-import { UploadCloud, CheckCircle, Loader2, Database, Sparkles, Key, Check, ShieldCheck, FileText } from "lucide-react"
+import { UploadCloud, CheckCircle, Loader2, Database, Sparkles, Key, Check, ShieldCheck, FileText, RotateCcw } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -104,6 +104,16 @@ export default function IngestionPage() {
     }
   }
 
+  const handleReset = async () => {
+    if (!confirm("Are you sure you want to reset the knowledge base to 0 facts?")) return
+    try {
+      await api.resetKnowledgeBase()
+      setStatusMessage("Knowledge base reset to 0 facts. Ready for a clean demonstration!")
+    } catch {
+      alert("Failed to reset database.")
+    }
+  }
+
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       {/* Header */}
@@ -144,6 +154,17 @@ export default function IngestionPage() {
           >
             <Database className="w-3.5 h-3.5" />
             Ingest All (6 PDFs)
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleReset} 
+            disabled={isUploading}
+            className="gap-1.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            title="Reset to 0 facts for a clean demo"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset Store
           </Button>
         </div>
       </div>
