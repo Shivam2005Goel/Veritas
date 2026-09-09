@@ -14,19 +14,69 @@ class Reconciler:
     """
 
     @classmethod
+    def are_entities_compatible(cls, f1: Fact, f2: Fact) -> bool:
+        """Determines if two facts refer to the same or compatible entity domain."""
+        s1 = f1.subject.lower().strip()
+        s2 = f2.subject.lower().strip()
+        if s1 == s2:
+            return True
+
+        # Fuzzy word containment (e.g. "Tesla" in "Tesla, Inc.", "ZEPHYR" in "ZEPHYR (Research System)")
+        import re
+        w1 = set(re.findall(r"\w+", s1))
+        w2 = set(re.findall(r"\w+", s2))
+        # Filter out common corporate/system words
+        stop = {"inc", "ltd", "limited", "corp", "corporation", "system", "model", "paper", "research", "the", "of", "and"}
+        sig1 = w1 - stop
+        sig2 = w2 - stop
+        if sig1 and sig2 and (sig1.issubset(sig2) or sig2.issubset(sig1)):
+            return True
+
+        # Macro / Public Finance sovereign entities reporting on India
+        sovereign_entities = {
+            "government of india", "government of india - union budget", "ministry of finance",
+            "reserve bank of india", "ministry of statistics and programme implementation",
+            "mospi", "rbi", "central statistics office", "niti aayog", "india"
+        }
+        if s1 in sovereign_entities and s2 in sovereign_entities:
+            return True
+
+        return False
+
+    @classmethod
     def are_predicates_compatible(cls, p1: str, p2: str) -> bool:
-        """Determines if two predicates refer to the same financial/operational dimension."""
+        """Determines if two predicates refer to the same financial, operational, or macro dimension."""
         if p1 == p2:
             return True
-        revenue_group = {"revenue_from_operations", "revenue_from_operations_consolidated", "revenue_from_operations_standalone", "total_income"}
-        if p1 in revenue_group and p2 in revenue_group:
-            return True
-        gdp_group = {"real_gdp_growth", "real_gdp_growth_estimate", "gdp_growth_rate"}
-        if p1 in gdp_group and p2 in gdp_group:
-            return True
-        inflation_group = {"cpi_headline_inflation", "headline_inflation", "cpi_inflation"}
-        if p1 in inflation_group and p2 in inflation_group:
-            return True
+            
+        synonym_groups = [
+            # Revenues
+            {"revenue_from_operations", "revenue_from_operations_consolidated", "revenue_from_operations_standalone", "total_income", "total_revenue", "net_revenue", "turnover", "net_sales"},
+            # Net Profits
+            {"net_profit", "profit_after_tax", "pat", "profit_for_the_year", "net_income"},
+            # Operating Profits / EBITDA
+            {"operating_profit_ebitda", "ebitda", "operating_profit", "adjusted_ebitda", "profit_before_tax", "pbt"},
+            # Expenses
+            {"total_expenses", "total_expenditure", "operating_expenses"},
+            # Assets / Cash
+            {"cash_and_cash_equivalents", "cash_reserves", "bank_balances"},
+            # GDP
+            {"real_gdp_growth", "real_gdp_growth_estimate", "gdp_growth_rate", "gdp_growth"},
+            # Inflation
+            {"cpi_headline_inflation", "headline_inflation", "cpi_inflation", "retail_inflation"},
+            # Public Finance / Budget
+            {"gross_tax_revenue", "total_revenue_receipts", "centre_net_tax_revenue", "total_receipts", "customs", "corporation_tax", "taxes_on_income"},
+            # Scientific / AI Benchmarks
+            {"true_positive_rate", "detection_accuracy", "area_under_curve_auc", "temporal_spectral_slope"},
+            # Volume & Operational
+            {"total_volume", "freight_tonnage", "shipments", "express_parcels"},
+            {"total_employees", "employee_count", "headcount", "workforce"}
+        ]
+        
+        for group in synonym_groups:
+            if p1 in group and p2 in group:
+                return True
+                
         return False
 
     @classmethod
@@ -36,8 +86,8 @@ class Reconciler:
         if f1.doc_id == f2.doc_id:
             return None
 
-        # Must be about the same resolved entity
-        if f1.subject.lower() != f2.subject.lower():
+        # Must be about the same or compatible resolved entity
+        if not cls.are_entities_compatible(f1, f2):
             return None
 
         # Must be semantically compatible predicates
@@ -100,7 +150,17 @@ class Reconciler:
 
         # Same period and same scope: Compare values
         if rel_diff <= 0.02: # Within 2% (rounding differences between crore and million units)
-            formatted_val = f"{v1:.2f}%" if f1.unit == "percent" else f"~₹{v1/1e7:,.2f} Cr"
+            if f1.unit == "percent":
+                formatted_val = f"{v1:.2f}%"
+            elif f1.currency == "USD":
+                formatted_val = f"${v1/1e9:.2f}B" if v1 >= 1e9 else f"${v1/1e6:.2f}M"
+            elif f1.currency == "EUR":
+                formatted_val = f"€{v1/1e9:.2f}B" if v1 >= 1e9 else f"€{v1/1e6:.2f}M"
+            elif f1.currency == "INR":
+                formatted_val = f"~₹{v1/1e7:,.2f} Cr"
+            else:
+                formatted_val = f"{v1:,.2f} {f1.unit or ''}".strip()
+
             return Reconciliation(
                 id=rec_id,
                 type="corroboration",

@@ -21,6 +21,14 @@ class SchemaEngine:
             "description": "Physical infrastructure, coverage reach, shipment volumes, and active customer counts.",
             "keywords": ["pin", "code", "customer", "tonnage", "shipment", "network", "freight", "hub", "capacity"]
         },
+        "RESEARCH_&_SCIENTIFIC_METRICS": {
+            "description": "Experimental benchmarks, model accuracy, detection rates, latency, and scientific parameters.",
+            "keywords": ["auc", "rate", "slope", "accuracy", "precision", "recall", "f1", "latency", "fps", "parameter", "score", "gradient", "reduction", "spectral"]
+        },
+        "PUBLIC_FINANCE_&_TAXATION": {
+            "description": "Government revenues, budget receipts, gross tax collections, corporation tax, and customs.",
+            "keywords": ["tax", "customs", "duty", "duties", "receipts", "debt", "budget", "loans", "cess", "revenue_receipts"]
+        },
         "GOVERNANCE_&_LEGAL": {
             "description": "Corporate structure, board appointments, auditor opinions, and regulatory disclosures.",
             "keywords": ["director", "board", "auditor", "registered", "incorporation", "drhp", "prospectus"]

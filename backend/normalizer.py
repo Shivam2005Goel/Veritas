@@ -7,16 +7,12 @@ class Normalizer:
     Ensures that differences in formatting do not masquerade as contradictions.
     """
 
-    # Entity canonical mapping dictionary
+    # Entity canonical mapping dictionary (only specific proper nouns, never generic words)
     KNOWN_ENTITY_ALIASES = {
         "delhivery": "Delhivery Limited",
         "delhivery limited": "Delhivery Limited",
-        "the company": "Delhivery Limited",
-        "our company": "Delhivery Limited",
-        "the group": "Delhivery Limited",
         "reserve bank of india": "Reserve Bank of India",
         "rbi": "Reserve Bank of India",
-        "the bank": "Reserve Bank of India",
         "international monetary fund": "International Monetary Fund",
         "imf": "International Monetary Fund",
         "government of india": "Government of India",
@@ -77,6 +73,20 @@ class Normalizer:
         # FY25 / 2024-25
         if any(k in text_lower for k in ["fy25", "fy 25", "2024-25", "march 31, 2025"]):
             return "FY25", "2024-04-01", "2025-03-31"
+
+        # Generic year range: 2024-2025, 2025-2026, 2021-22, etc.
+        year_range = re.search(r"\b(20\d{2})[-–](20\d{2}|\d{2})\b", text_lower)
+        if year_range:
+            y1 = year_range.group(1)
+            y2_raw = year_range.group(2)
+            y2 = y2_raw if len(y2_raw) == 4 else f"20{y2_raw}"
+            return f"{y1}-{y2}", f"{y1}-04-01", f"{y2}-03-31"
+
+        # Single calendar year: 2020-2035
+        single_year = re.search(r"\b(20[2-3]\d)\b", text_lower)
+        if single_year:
+            y = single_year.group(1)
+            return y, f"{y}-01-01", f"{y}-12-31"
 
         return None, None, None
 

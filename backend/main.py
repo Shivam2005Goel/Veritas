@@ -37,6 +37,44 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 class QueryRequest(BaseModel):
     query: str
 
+class SettingsUpdate(BaseModel):
+    api_key: str
+    provider: str = "gemini"
+    model: Optional[str] = None
+
+ACTIVE_LLM_CONFIG = {
+    "api_key": os.getenv("OPENAI_API_KEY") or os.getenv("GEMINI_API_KEY") or "",
+    "provider": "gemini" if os.getenv("GEMINI_API_KEY") else ("openai" if os.getenv("OPENAI_API_KEY") else "none"),
+    "model": os.getenv("LLM_MODEL", "gemini-1.5-flash" if os.getenv("GEMINI_API_KEY") else "gpt-4o-mini")
+}
+
+@app.get("/api/settings")
+def get_settings():
+    return {
+        "llm_enabled": bool(ACTIVE_LLM_CONFIG["api_key"]),
+        "provider": ACTIVE_LLM_CONFIG["provider"],
+        "model": ACTIVE_LLM_CONFIG["model"],
+        "universal_engine_active": True
+    }
+
+@app.post("/api/settings/api-key")
+def update_api_key(body: SettingsUpdate):
+    ACTIVE_LLM_CONFIG["api_key"] = body.api_key.strip()
+    ACTIVE_LLM_CONFIG["provider"] = body.provider.lower().strip()
+    if body.model:
+        ACTIVE_LLM_CONFIG["model"] = body.model.strip()
+    elif body.provider.lower() == "gemini":
+        ACTIVE_LLM_CONFIG["model"] = "gemini-1.5-flash"
+    else:
+        ACTIVE_LLM_CONFIG["model"] = "gpt-4o-mini"
+        
+    if body.provider.lower() == "gemini":
+        os.environ["GEMINI_API_KEY"] = body.api_key.strip()
+    else:
+        os.environ["OPENAI_API_KEY"] = body.api_key.strip()
+        
+    return {"status": "success", "settings": get_settings()}
+
 @app.get("/api/health")
 def health():
     return {"status": "healthy", "service": "veritas-engine"}

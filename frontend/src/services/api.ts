@@ -147,5 +147,21 @@ export const api = {
     })
     if (!res.ok) throw new Error("Failed to query knowledge layer")
     return await res.json()
+  },
+
+  getSettings: async () => {
+    const res = await fetch(`${API_BASE_URL}/settings`)
+    if (!res.ok) throw new Error("Failed to fetch settings")
+    return await res.json()
+  },
+
+  updateApiKey: async (apiKey: string, provider: string = "gemini") => {
+    const res = await fetch(`${API_BASE_URL}/settings/api-key`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: apiKey, provider })
+    })
+    if (!res.ok) throw new Error("Failed to update API key")
+    return await res.json()
   }
 }
