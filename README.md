@@ -6,7 +6,7 @@
 ---
 
 ## 🎥 Video Demo
-- **Demo Video (≤ 3 minutes)**: [Watch Veritas Demo on YouTube](https://youtube.com/watch?v=YOUR_DEMO_LINK_HERE) *(Replace with your recorded demo link)*
+- **Demo Video (≤ 3 minutes)**: 🎬 **[Watch Veritas Walkthrough & Architecture Video (Google Drive)](https://drive.google.com/file/d/16tod5tjkUWvEp9lTl_Jn1GqhYUHn8Hcd/view?usp=sharing)**
 - **Demo Highlights**:
   1. PDF upload and automated 4-stage ingestion pipeline.
   2. Grounded facts explorer with page references, verbatim source quotes, and visual bounding-box overlays.
